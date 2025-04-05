@@ -24,8 +24,12 @@ class TokenProviderViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        // Create TokenProvider using the sample helper
-        tokenProvider = IOSExampleKt.createTokenProvider()
+        // Create TokenProvider using the simplified factory method
+        tokenProvider = IOSExampleKt.createTokenProvider(
+            issuerUrl: issuerUrl,
+            clientId: clientId,
+            clientSecret: clientSecret
+        )
         
         // Observe token state changes
         observeTokenState()
@@ -33,58 +37,22 @@ class TokenProviderViewModel: ObservableObject {
     
     // MARK: - Public methods
     
-    func discoverConfiguration() {
-        isLoading = true
-        status = "Discovering configuration..."
-        
-        let completionHandler = { (result: TokenResult<TokenEndpoints>) -> Void in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                
-                switch result {
-                case is TokenResult.Success<TokenEndpoints>:
-                    let success = result as! TokenResult.Success<TokenEndpoints>
-                    let endpoints = success.data
-                    self.status = "Configuration discovered successfully"
-                    print("Discovered endpoints: \(endpoints)")
-                    self.errorMessage = nil
-                    
-                case is TokenResult.Error:
-                    let error = result as! TokenResult.Error
-                    self.status = "Configuration discovery failed"
-                    self.errorMessage = error.exception.message ?? "Unknown error"
-                    print("Discovery error: \(error.exception)")
-                    
-                default:
-                    self.status = "Unknown result type"
-                }
-            }
-        }
-        
-        // Call the SDK
-        TokenProviderKt.discoverConfiguration(
-            self.tokenProvider,
-            issuerUrl: issuerUrl,
-            completionHandler: completionHandler
-        )
-    }
-    
     func getAccessToken() {
         isLoading = true
         status = "Getting access token..."
         
-        let completionHandler = { (result: TokenResult<NSString>) -> Void in
+        let completionHandler = { (result: TokenResult<TokenSet>) -> Void in
             DispatchQueue.main.async {
                 self.isLoading = false
                 
                 switch result {
-                case is TokenResult.Success<NSString>:
-                    let success = result as! TokenResult.Success<NSString>
-                    let token = success.data as String
+                case is TokenResult.Success<TokenSet>:
+                    let success = result as! TokenResult.Success<TokenSet>
+                    let tokens = success.data
                     self.status = "Access token obtained"
-                    self.accessToken = "\(String(token.prefix(10)))..."
+                    self.accessToken = String(tokens.accessToken.prefix(10)) + "..."
                     self.errorMessage = nil
-                    print("Got access token: \(token)")
+                    print("Got access token: \(tokens.accessToken)")
                     
                 case is TokenResult.Error:
                     let error = result as! TokenResult.Error
@@ -98,12 +66,10 @@ class TokenProviderViewModel: ObservableObject {
             }
         }
         
-        // Call the SDK
+        // Call the SDK - discovery is handled automatically
         TokenProviderKt.getAccessToken(
             self.tokenProvider, 
-            clientId: clientId,
-            clientSecret: clientSecret,
-            force: false,
+            forceRefresh: false,
             completionHandler: completionHandler
         )
     }
@@ -157,12 +123,10 @@ class TokenProviderViewModel: ObservableObject {
                 }
             }
             
-            // Call the SDK
+            // Call the SDK - no need to worry about discovery
             TokenProviderKt.requestAutoLoginCode(
                 self.tokenProvider,
-                clientId: self.clientId,
                 username: "user@example.com", // Replace with actual username
-                clientSecret: self.clientSecret,
                 additionalParams: ["redirect_uri": "myapp://callback"],
                 completionHandler: completionHandler
             )

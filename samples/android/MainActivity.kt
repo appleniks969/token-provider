@@ -10,16 +10,14 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.oidc.TokenProvider
-import com.example.oidc.client.KtorTokenClient
+import com.example.oidc.examples.AndroidExample
 import com.example.oidc.model.TokenResult
 import com.example.oidc.model.TokenState
-import com.example.oidc.storage.AndroidSecureRepository
-import io.ktor.client.engine.android.Android
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 /**
- * Sample Android Activity demonstrating the usage of the OIDC Token Provider SDK
+ * Sample Android Activity demonstrating the usage of the simplified OIDC Token Provider SDK
  */
 class MainActivity : AppCompatActivity() {
     
@@ -27,7 +25,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusTextView: TextView
     private lateinit var tokenTextView: TextView
     private lateinit var progressBar: ProgressBar
-    private lateinit var initButton: Button
     private lateinit var getTokenButton: Button
     private lateinit var autoLoginButton: Button
     
@@ -47,12 +44,16 @@ class MainActivity : AppCompatActivity() {
         statusTextView = findViewById(R.id.statusTextView)
         tokenTextView = findViewById(R.id.tokenTextView)
         progressBar = findViewById(R.id.progressBar)
-        initButton = findViewById(R.id.initButton)
         getTokenButton = findViewById(R.id.getTokenButton)
         autoLoginButton = findViewById(R.id.autoLoginButton)
         
-        // Initialize TokenProvider
-        initializeTokenProvider()
+        // Initialize TokenProvider using the simplified factory method
+        tokenProvider = AndroidExample.createTokenProvider(
+            context = applicationContext,
+            issuerUrl = issuerUrl,
+            clientId = clientId,
+            clientSecret = clientSecret
+        )
         
         // Set up button click listeners
         setupClickListeners()
@@ -61,30 +62,7 @@ class MainActivity : AppCompatActivity() {
         observeTokenState()
     }
     
-    private fun initializeTokenProvider() {
-        // Create repository for secure token storage
-        val repository = AndroidSecureRepository(applicationContext)
-        
-        // Create HTTP engine
-        val engine = Android.create()
-        
-        // Create token client
-        val client = KtorTokenClient.create(engine)
-        
-        // Create TokenProvider
-        tokenProvider = TokenProvider.create(
-            client = client,
-            repository = repository,
-            coroutineScope = lifecycleScope
-        )
-    }
-    
     private fun setupClickListeners() {
-        // Initialize the provider
-        initButton.setOnClickListener {
-            discoverConfiguration()
-        }
-        
         // Get access token
         getTokenButton.setOnClickListener {
             getAccessToken()
@@ -122,46 +100,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun discoverConfiguration() {
-        progressBar.visibility = View.VISIBLE
-        lifecycleScope.launch {
-            when (val result = tokenProvider.discoverConfiguration(issuerUrl)) {
-                is TokenResult.Success -> {
-                    val endpoints = result.data
-                    Log.d(TAG, "Discovered endpoints: $endpoints")
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Configuration discovered successfully",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    
-                    // Enable other buttons
-                    getTokenButton.isEnabled = true
-                    autoLoginButton.isEnabled = true
-                }
-                is TokenResult.Error -> {
-                    Log.e(TAG, "Discovery error", result.exception)
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Discovery error: ${result.exception.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            progressBar.visibility = View.GONE
-        }
-    }
-    
     private fun getAccessToken() {
         progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
-            when (val result = tokenProvider.getAccessToken(
-                clientId = clientId,
-                clientSecret = clientSecret
-            )) {
+            when (val result = tokenProvider.getAccessToken()) {
                 is TokenResult.Success -> {
-                    val accessToken = result.data
-                    Log.d(TAG, "Got access token: ${accessToken.take(10)}...")
+                    val tokenSet = result.data
+                    Log.d(TAG, "Got access token: ${tokenSet.accessToken.take(10)}...")
                     Toast.makeText(
                         this@MainActivity,
                         "Access token obtained successfully",
@@ -199,9 +144,7 @@ class MainActivity : AppCompatActivity() {
             
             // Request a new code
             when (val result = tokenProvider.requestAutoLoginCode(
-                clientId = clientId,
                 username = "user@example.com", // Replace with actual username
-                clientSecret = clientSecret,
                 additionalParams = mapOf(
                     "redirect_uri" to "myapp://callback"
                 )

@@ -1,129 +1,209 @@
 # KMM OIDC Token Provider SDK
 
-A Kotlin Multiplatform Mobile (KMM) SDK for managing OpenID Connect (OIDC) tokens on both Android and iOS platforms. This SDK provides a unified API for discovering OIDC configurations, obtaining and refreshing tokens, and securely storing them.
+A streamlined Kotlin Multiplatform Mobile (KMM) SDK for managing OpenID Connect (OIDC) tokens on both Android and iOS platforms. This SDK provides a simplified API for obtaining and refreshing tokens with minimal configuration.
 
 ## Features
 
-- **Discovery** - Automatically discover OIDC provider endpoints
-- **Token Management** - Get, refresh, and store access tokens
-- **Auto Login Codes** - Support for requesting and storing auto login codes
+- **Simple Token Management** - Get tokens with a single method call
+- **Automatic Discovery** - No need to manually handle OIDC discovery
+- **Auto Refresh** - Tokens are automatically refreshed when needed
 - **Secure Storage** - Platform-specific secure storage for tokens
-- **Multiple Token Support** - Store and manage tokens for different scopes and resources
+- **Auto Login Code Support** - Request and store auto login codes
 - **Reactive State** - Kotlin Flow-based state updates
-
-## Architecture
-
-The SDK follows a clean architecture design with the following components:
-
-- **TokenProvider** - Main entry point for the SDK that manages token lifecycle
-- **TokenClient** - Handles communication with OIDC endpoints
-- **TokenRepository** - Manages secure storage of tokens
-- **Domain Models** - Token-related data models
 
 ## Installation
 
-*Add gradle/cocoapods dependency information here*
+### Gradle Setup (Android)
 
-## Usage
-
-### Initialize the SDK
+Add the following to your `build.gradle.kts` file:
 
 ```kotlin
-// Android
-val tokenProvider = AndroidExample.createTokenProvider(context)
-
-// iOS
-val tokenProvider = IOSExample.createTokenProvider()
-```
-
-### Discover the OIDC Configuration
-
-```kotlin
-coroutineScope.launch {
-    val result = tokenProvider.discoverConfiguration("https://example.auth0.com")
-    
-    when (result) {
-        is TokenResult.Success -> {
-            println("Discovered OIDC configuration")
-            println("Token endpoint: ${result.data.tokenEndpoint}")
-        }
-        is TokenResult.Error -> {
-            println("Failed to discover: ${result.exception.message}")
-        }
-    }
+dependencies {
+    implementation("com.example:oidc:1.0.0")
 }
 ```
 
-### Get an Access Token
+### CocoaPods Setup (iOS)
 
-```kotlin
-coroutineScope.launch {
-    val result = tokenProvider.getAccessToken(
-        clientId = "your-client-id",
-        clientSecret = "your-client-secret" // Optional
-    )
-    
-    when (result) {
-        is TokenResult.Success -> {
-            val accessToken = result.data
-            // Use the token for API calls
-        }
-        is TokenResult.Error -> {
-            println("Failed to get token: ${result.exception.message}")
-        }
-    }
-}
+Add the following to your `Podfile`:
+
+```ruby
+pod 'OidcTokenProvider', '~> 1.0.0'
 ```
 
-### Request an Auto Login Code
-
-```kotlin
-coroutineScope.launch {
-    val result = tokenProvider.requestAutoLoginCode(
-        clientId = "your-client-id",
-        username = "user@example.com",
-        clientSecret = "your-client-secret", // Optional
-        additionalParams = mapOf(
-            "redirect_uri" to "myapp://callback"
-        )
-    )
-    
-    when (result) {
-        is TokenResult.Success -> {
-            val code = result.data
-            println("Got auto login code: $code")
-        }
-        is TokenResult.Error -> {
-            println("Failed to get code: ${result.exception.message}")
-        }
-    }
-}
-```
-
-### Multiple Token Scopes (with ScopedTokenRepository)
-
-```kotlin
-// Create a scope for read operations
-val readScope = TokenScope.forScope(
-    clientId = "your-client-id",
-    scope = "read",
-    userId = "user123"
-)
-
-// Get tokens for the read scope
-val readTokens = scopedRepository.getTokens(readScope)
-```
-
-## Platform-Specific Considerations
+## Quick Start
 
 ### Android
 
-The Android implementation uses the Android Keystore System and SharedPreferences for secure token storage.
+```kotlin
+// Create the TokenProvider
+val tokenProvider = AndroidExample.createTokenProvider(
+    context = applicationContext,
+    issuerUrl = "https://example.auth0.com",
+    clientId = "your-client-id",
+    clientSecret = "your-client-secret" // Optional
+)
+
+// Get an access token - discovery and refresh are handled automatically
+lifecycleScope.launch {
+    when (val result = tokenProvider.getAccessToken()) {
+        is TokenResult.Success -> {
+            val tokenSet = result.data
+            // Use tokenSet.accessToken for API calls
+        }
+        is TokenResult.Error -> {
+            // Handle error
+        }
+    }
+}
+```
 
 ### iOS
 
-The iOS implementation uses the Keychain Services API for secure token storage.
+```swift
+// Create the TokenProvider
+let tokenProvider = IOSExampleKt.createTokenProvider(
+    issuerUrl: "https://example.auth0.com",
+    clientId: "your-client-id",
+    clientSecret: "your-client-secret" // Optional
+)
+
+// Get an access token - discovery and refresh are handled automatically
+TokenProviderKt.getAccessToken(tokenProvider) { result in
+    switch result {
+    case is TokenResult.Success<TokenSet>:
+        let success = result as! TokenResult.Success<TokenSet>
+        let tokens = success.data
+        // Use tokens.accessToken for API calls
+        
+    case is TokenResult.Error:
+        let error = result as! TokenResult.Error
+        // Handle error
+        
+    default:
+        break
+    }
+}
+```
+
+## Auto Login Code Support
+
+```kotlin
+// Android
+lifecycleScope.launch {
+    when (val result = tokenProvider.requestAutoLoginCode(
+        username = "user@example.com",
+        additionalParams = mapOf("redirect_uri" to "myapp://callback")
+    )) {
+        is TokenResult.Success -> {
+            val code = result.data
+            // Use the auto login code
+        }
+        is TokenResult.Error -> {
+            // Handle error
+        }
+    }
+}
+
+// iOS
+TokenProviderKt.requestAutoLoginCode(
+    tokenProvider,
+    username: "user@example.com",
+    additionalParams: ["redirect_uri": "myapp://callback"]
+) { result in
+    // Handle result
+}
+```
+
+## Token State Observation
+
+```kotlin
+// Observe token state changes
+lifecycleScope.launch {
+    tokenProvider.tokenState.collect { state ->
+        when (state) {
+            is TokenState.NoToken -> { /* No token available */ }
+            is TokenState.Refreshing -> { /* Token is being refreshed */ }
+            is TokenState.Valid -> { /* Token is valid */ }
+            is TokenState.Invalid -> { /* Token is invalid */ }
+        }
+    }
+}
+```
+
+## Architecture
+
+The SDK follows a simplified architecture with minimal abstractions:
+
+- **TokenProvider** - Main entry point that handles discovery, token acquisition, and refreshing
+- **SecureStorage** - Interface for platform-specific secure token storage
+  - **AndroidSecureStorage** - Android implementation using Keystore
+  - **IOSSecureStorage** - iOS implementation using Keychain
+
+## API Reference
+
+### TokenProvider
+
+```kotlin
+// Create with factory method
+val tokenProvider = TokenProvider.create(
+    engine = httpEngine,
+    storage = secureStorage,
+    coroutineScope = coroutineScope,
+    issuerUrl = "https://example.auth0.com",
+    clientId = "your-client-id",
+    clientSecret = "your-client-secret" // Optional
+)
+
+// Get tokens (handles discovery and refresh)
+val result = tokenProvider.getAccessToken()
+
+// Get auto login code
+val code = tokenProvider.getAutoLoginCode()
+
+// Request new auto login code
+val result = tokenProvider.requestAutoLoginCode(username)
+
+// Observe token state
+tokenProvider.tokenState.collect { state -> ... }
+```
+
+### TokenSet
+
+The `TokenSet` class represents a full set of tokens:
+
+```kotlin
+data class TokenSet(
+    val accessToken: String,
+    val refreshToken: String?,
+    val tokenType: String,
+    val scope: String?,
+    val expiresAt: Long,
+    val autoLoginCode: String?
+)
+```
+
+## Security Considerations
+
+- Tokens are stored using platform-specific secure storage mechanisms
+- Android: Keystore + encrypted SharedPreferences
+- iOS: Keychain Services
+- Token expiration includes buffer time and clock skew handling
 
 ## License
 
-*Add license information here*
+```
+Copyright (c) 2025 Example Organization
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```

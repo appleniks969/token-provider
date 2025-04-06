@@ -34,21 +34,6 @@ val tokenProvider = TokenProvider.create(
     clientId = "your-client-id",
     clientSecret = "your-client-secret" // Optional
 )
-
-// Android helper
-val tokenProvider = AndroidExample.createTokenProvider(
-    context = context,
-    issuerUrl = "https://example.auth0.com",
-    clientId = "your-client-id",
-    clientSecret = "your-client-secret" // Optional
-)
-
-// iOS helper
-val tokenProvider = IOSExample.createTokenProvider(
-    issuerUrl = "https://example.auth0.com",
-    clientId = "your-client-id",
-    clientSecret = "your-client-secret" // Optional
-)
 ```
 
 #### Methods
@@ -220,8 +205,12 @@ sealed class TokenState {
 
 ```kotlin
 // In your Activity or ViewModel
-val tokenProvider = AndroidExample.createTokenProvider(
-    context = applicationContext,
+val storage = AndroidSecureStorage(applicationContext)
+
+val tokenProvider = TokenProvider.create(
+    engine = Android.create(),
+    storage = storage,
+    coroutineScope = lifecycleScope,
     issuerUrl = "https://example.auth0.com",
     clientId = "your-client-id",
     clientSecret = "your-client-secret" // Optional
@@ -237,7 +226,14 @@ lifecycleScope.launch {
 
 ```swift
 // In your ViewController or ViewModel
-let tokenProvider = IOSExampleKt.createTokenProvider(
+let storage = IOSSecureStorage()
+let engine = DarwinHttpClientEngine()
+let scope = MainScope()
+
+let tokenProvider = TokenProviderKt.create(
+    engine: engine,
+    storage: storage,
+    coroutineScope: scope,
     issuerUrl: "https://example.auth0.com",
     clientId: "your-client-id",
     clientSecret: "your-client-secret" // Optional
@@ -263,10 +259,6 @@ TokenProviderKt.getAccessToken(tokenProvider) { result in
 3. **Communication Security**
    - All network communication uses HTTPS
    - Error responses are properly handled and do not expose sensitive information
-
-4. **Minimal Required Information**
-   - SDK requires only the minimal information needed for operation
-   - Client secret is optional if not required by the OIDC provider
 
 ## Troubleshooting
 

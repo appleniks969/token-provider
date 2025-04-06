@@ -10,9 +10,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.oidc.TokenProvider
-import com.example.oidc.examples.AndroidExample
 import com.example.oidc.model.TokenResult
 import com.example.oidc.model.TokenState
+import com.example.oidc.storage.AndroidSecureStorage
+import io.ktor.client.engine.android.Android
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -47,9 +48,14 @@ class MainActivity : AppCompatActivity() {
         getTokenButton = findViewById(R.id.getTokenButton)
         autoLoginButton = findViewById(R.id.autoLoginButton)
         
-        // Initialize TokenProvider using the simplified factory method
-        tokenProvider = AndroidExample.createTokenProvider(
-            context = applicationContext,
+        // Initialize TokenProvider directly
+        val storage = AndroidSecureStorage(applicationContext)
+        val engine = Android.create()
+        
+        tokenProvider = TokenProvider.create(
+            engine = engine,
+            storage = storage,
+            coroutineScope = lifecycleScope,
             issuerUrl = issuerUrl,
             clientId = clientId,
             clientSecret = clientSecret

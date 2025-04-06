@@ -10,6 +10,9 @@ A streamlined Kotlin Multiplatform Mobile (KMM) SDK for managing OpenID Connect 
 - **Secure Storage** - Platform-specific secure storage for tokens
 - **Auto Login Code Support** - Request and store auto login codes
 - **Reactive State** - Kotlin Flow-based state updates
+- **Enhanced Security** - Supports PKCE and token validation
+- **Multiple Auth Flows** - Authorization Code, Client Credentials, and more
+- **Cross-Platform** - Works seamlessly on both Android and iOS
 
 ## Installation
 
@@ -36,9 +39,14 @@ pod 'OidcTokenProvider', '~> 1.0.0'
 ### Android
 
 ```kotlin
+// Create secure storage implementation
+val storage = AndroidSecureStorage(context)
+
 // Create the TokenProvider
-val tokenProvider = AndroidExample.createTokenProvider(
-    context = applicationContext,
+val tokenProvider = TokenProvider.create(
+    engine = Android.create(),
+    storage = storage,
+    coroutineScope = lifecycleScope,
     issuerUrl = "https://example.auth0.com",
     clientId = "your-client-id",
     clientSecret = "your-client-secret" // Optional
@@ -61,8 +69,16 @@ lifecycleScope.launch {
 ### iOS
 
 ```swift
+// Create dependencies
+let storage = IOSSecureStorage()
+let engine = DarwinHttpClientEngine()
+let scope = MainScope()
+
 // Create the TokenProvider
-let tokenProvider = IOSExampleKt.createTokenProvider(
+let tokenProvider = TokenProviderKt.create(
+    engine: engine,
+    storage: storage,
+    coroutineScope: scope,
     issuerUrl: "https://example.auth0.com",
     clientId: "your-client-id",
     clientSecret: "your-client-secret" // Optional
@@ -86,124 +102,30 @@ TokenProviderKt.getAccessToken(tokenProvider) { result in
 }
 ```
 
-## Auto Login Code Support
+## Documentation
 
-```kotlin
-// Android
-lifecycleScope.launch {
-    when (val result = tokenProvider.requestAutoLoginCode(
-        username = "user@example.com",
-        additionalParams = mapOf("redirect_uri" to "myapp://callback")
-    )) {
-        is TokenResult.Success -> {
-            val code = result.data
-            // Use the auto login code
-        }
-        is TokenResult.Error -> {
-            // Handle error
-        }
-    }
-}
+For more detailed information, refer to the following documentation:
 
-// iOS
-TokenProviderKt.requestAutoLoginCode(
-    tokenProvider,
-    username: "user@example.com",
-    additionalParams: ["redirect_uri": "myapp://callback"]
-) { result in
-    // Handle result
-}
-```
-
-## Token State Observation
-
-```kotlin
-// Observe token state changes
-lifecycleScope.launch {
-    tokenProvider.tokenState.collect { state ->
-        when (state) {
-            is TokenState.NoToken -> { /* No token available */ }
-            is TokenState.Refreshing -> { /* Token is being refreshed */ }
-            is TokenState.Valid -> { /* Token is valid */ }
-            is TokenState.Invalid -> { /* Token is invalid */ }
-        }
-    }
-}
-```
+- [Architecture and Design](docs/architecture.md)
+- [Authentication Flows](docs/authentication_flows.md)
+- [API Reference](docs/api_reference.md)
+- [Best Practices](docs/best_practices.md)
+- [Android Integration](docs/android_integration.md)
+- [iOS Integration](docs/ios_integration.md)
 
 ## Architecture
 
-The SDK follows a simplified architecture with minimal abstractions:
+The SDK follows a minimalist architecture with a focus on ease of use:
 
 - **TokenProvider** - Main entry point that handles discovery, token acquisition, and refreshing
 - **SecureStorage** - Interface for platform-specific secure token storage
   - **AndroidSecureStorage** - Android implementation using Keystore
   - **IOSSecureStorage** - iOS implementation using Keychain
 
-## API Reference
+## Contributing
 
-### TokenProvider
-
-```kotlin
-// Create with factory method
-val tokenProvider = TokenProvider.create(
-    engine = httpEngine,
-    storage = secureStorage,
-    coroutineScope = coroutineScope,
-    issuerUrl = "https://example.auth0.com",
-    clientId = "your-client-id",
-    clientSecret = "your-client-secret" // Optional
-)
-
-// Get tokens (handles discovery and refresh)
-val result = tokenProvider.getAccessToken()
-
-// Get auto login code
-val code = tokenProvider.getAutoLoginCode()
-
-// Request new auto login code
-val result = tokenProvider.requestAutoLoginCode(username)
-
-// Observe token state
-tokenProvider.tokenState.collect { state -> ... }
-```
-
-### TokenSet
-
-The `TokenSet` class represents a full set of tokens:
-
-```kotlin
-data class TokenSet(
-    val accessToken: String,
-    val refreshToken: String?,
-    val tokenType: String,
-    val scope: String?,
-    val expiresAt: Long,
-    val autoLoginCode: String?
-)
-```
-
-## Security Considerations
-
-- Tokens are stored using platform-specific secure storage mechanisms
-- Android: Keystore + encrypted SharedPreferences
-- iOS: Keychain Services
-- Token expiration includes buffer time and clock skew handling
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ## License
 
-```
-Copyright (c) 2025 Example Organization
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
+Apache License 2.0 - see [LICENSE](LICENSE) file for details

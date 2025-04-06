@@ -24,8 +24,15 @@ class TokenProviderViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        // Create TokenProvider using the simplified factory method
-        tokenProvider = IOSExampleKt.createTokenProvider(
+        // Create TokenProvider directly
+        let storage = IOSSecureStorage()
+        let engine = DarwinHttpClientEngine()
+        let scope = MainScope()
+        
+        tokenProvider = TokenProviderKt.create(
+            engine: engine,
+            storage: storage,
+            coroutineScope: scope,
             issuerUrl: issuerUrl,
             clientId: clientId,
             clientSecret: clientSecret
